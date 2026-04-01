@@ -625,3 +625,21 @@ OrtStatus *GetStringTensorElement(OrtValue *v, size_t buffer_length,
   size_t index, void *buffer) {
   return ort_api->GetStringTensorElement(v, buffer_length, index, buffer);
 }
+
+OrtStatus *SessionGetEpGraphAssignmentInfo(OrtSession *session,
+  const OrtEpAssignedSubgraph *const **ep_subgraphs,
+  size_t *num_ep_subgraphs) {
+  return ort_api->Session_GetEpGraphAssignmentInfo(session, ep_subgraphs,
+    num_ep_subgraphs);
+}
+
+OrtStatus *EpAssignedSubgraphGetEpName(
+  const OrtEpAssignedSubgraph *ep_subgraph, const char **out) {
+  return ort_api->EpAssignedSubgraph_GetEpName(ep_subgraph, out);
+}
+
+OrtStatus *EpAssignedSubgraphGetNodes(
+  const OrtEpAssignedSubgraph *ep_subgraph,
+  const OrtEpAssignedNode *const **nodes, size_t *num_nodes) {
+  return ort_api->EpAssignedSubgraph_GetNodes(ep_subgraph, nodes, num_nodes);
+}

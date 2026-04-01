@@ -1739,6 +1739,14 @@ func (o *SessionOptions) AddSessionConfigEntry(key, value string) error {
 	return nil
 }
 
+// EnableEpGraphAssignmentRecording enables recording of execution provider
+// graph assignments. This must be called before session creation in order for
+// GetEpGraphAssignmentInfo to work. Requires ORT 1.24+.
+func (o *SessionOptions) EnableEpGraphAssignmentRecording() error {
+	return o.AddSessionConfigEntry(
+		"session.record_ep_graph_assignment_info", "1")
+}
+
 // Sets the number of threads used to parallelize execution within onnxruntime
 // graph nodes. A value of 0 uses the default number of threads.
 func (o *SessionOptions) SetIntraOpNumThreads(n int) error {
@@ -2972,6 +2980,66 @@ func (s *DynamicAdvancedSession) RunWithBinding(b *IoBinding) error {
 // needed.
 func (s *DynamicAdvancedSession) GetModelMetadata() (*ModelMetadata, error) {
 	return s.s.GetModelMetadata()
+}
+
+// EpAssignment describes which execution provider was assigned to a subgraph.
+type EpAssignment struct {
+	// EpName is the name of the execution provider (e.g. "OpenVINOExecutionProvider", "CPUExecutionProvider").
+	EpName string
+	// NodeCount is the number of nodes assigned to this EP subgraph.
+	NodeCount int
+}
+
+// GetEpGraphAssignmentInfo returns the execution provider assignments for this
+// session's graph. The session must have been created with the session config
+// entry "session.record_ep_graph_assignment_info" set to "1", otherwise this
+// returns an error. Requires ORT 1.24+.
+func (s *AdvancedSession) GetEpGraphAssignmentInfo() ([]EpAssignment, error) {
+	var subgraphs *C.OrtEpAssignedSubgraph
+	var subgraphsPtr *(*C.OrtEpAssignedSubgraph)
+	_ = subgraphs
+	var numSubgraphs C.size_t
+	status := C.SessionGetEpGraphAssignmentInfo(s.ortSession,
+		(***C.OrtEpAssignedSubgraph)(unsafe.Pointer(&subgraphsPtr)),
+		&numSubgraphs)
+	if status != nil {
+		return nil, statusToError(status)
+	}
+	count := int(numSubgraphs)
+	if count == 0 {
+		return nil, nil
+	}
+	// Build a Go slice from the C array of pointers.
+	cArray := unsafe.Slice(subgraphsPtr, count)
+	result := make([]EpAssignment, count)
+	for i := 0; i < count; i++ {
+		var cName *C.char
+		status = C.EpAssignedSubgraphGetEpName(
+			(*C.OrtEpAssignedSubgraph)(unsafe.Pointer(cArray[i])), &cName)
+		if status != nil {
+			return nil, statusToError(status)
+		}
+		var nodes **C.OrtEpAssignedNode
+		var numNodes C.size_t
+		status = C.EpAssignedSubgraphGetNodes(
+			(*C.OrtEpAssignedSubgraph)(unsafe.Pointer(cArray[i])),
+			(***C.OrtEpAssignedNode)(unsafe.Pointer(&nodes)),
+			&numNodes)
+		if status != nil {
+			return nil, statusToError(status)
+		}
+		result[i] = EpAssignment{
+			EpName:    C.GoString(cName),
+			NodeCount: int(numNodes),
+		}
+	}
+	return result, nil
+}
+
+// GetEpGraphAssignmentInfo returns the execution provider assignments for this
+// session. See AdvancedSession.GetEpGraphAssignmentInfo for details.
+func (s *DynamicAdvancedSession) GetEpGraphAssignmentInfo() ([]EpAssignment, error) {
+	return s.s.GetEpGraphAssignmentInfo()
 }
 
 // Holds information about the name, shape, and type of an input or output to a

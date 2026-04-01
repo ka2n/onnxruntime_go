@@ -411,6 +411,21 @@ OrtStatus *GetStringTensorElementLength(OrtValue *v, size_t index,
 OrtStatus *GetStringTensorElement(OrtValue *v, size_t buffer_length,
   size_t index, void *buffer);
 
+// Wraps ort_api->Session_GetEpGraphAssignmentInfo (ORT 1.24+).
+// Requires "session.record_ep_graph_assignment_info" = "1" in session config.
+OrtStatus *SessionGetEpGraphAssignmentInfo(OrtSession *session,
+  const OrtEpAssignedSubgraph *const **ep_subgraphs,
+  size_t *num_ep_subgraphs);
+
+// Wraps ort_api->EpAssignedSubgraph_GetEpName (ORT 1.24+).
+OrtStatus *EpAssignedSubgraphGetEpName(
+  const OrtEpAssignedSubgraph *ep_subgraph, const char **out);
+
+// Wraps ort_api->EpAssignedSubgraph_GetNodes (ORT 1.24+).
+OrtStatus *EpAssignedSubgraphGetNodes(
+  const OrtEpAssignedSubgraph *ep_subgraph,
+  const OrtEpAssignedNode *const **nodes, size_t *num_nodes);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
